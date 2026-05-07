@@ -22,7 +22,8 @@ RUN pip install --upgrade pip -i ${PIP_INDEX_URL} \
     && (pip install -r /app/requirements.txt -i ${PIP_INDEX_URL} \
         || pip install -r /app/requirements.txt -i ${PIP_FALLBACK_INDEX_URL})
 
-COPY app.py config.py handler.py env.example /app/
+COPY app.py config.py handler.py address_book_source.py usage_state.py env.example /app/
+COPY api /app/api
 RUN mkdir -p /app/downloads
 
 CMD ["python", "app.py"]

@@ -6,3 +6,4 @@ alibabacloud-ocr-api20210707>=2.0.0
 pymupdf>=1.23.0
 PyMySQL>=1.1.1
 openpyxl>=3.1.2
+pysmb>=1.2.10

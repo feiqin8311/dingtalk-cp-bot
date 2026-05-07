@@ -21,8 +21,10 @@
 ├── app.py
 ├── handler.py
 ├── config.py
+├── address_book_source.py
 ├── env.example
 ├── requirements.txt
+├── tests/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── downloads/
@@ -41,10 +43,11 @@
   - 钉钉 Stream
   - 领星 OpenAPI
   - 阿里云 OCR
-- 依赖 Common 项目（`handler.py` 会从 `COMMON_DIR` 导入）：
-  - `Api.DingTalkNotifier`
-  - `Api.aliyun_client.AliyunOCRClient`
-  - `Api.lingxing_client.LingXingClient`
+  - SMB 共享盘（当地址簿配置为 `smb://...` 时）
+- 仓库内置 `api/` 兼容层，提供：
+  - `DingTalkNotifier`
+  - `AliyunOCRClient`
+  - `LingXingClient`
 
 ## 快速开始（本地）
 
@@ -67,7 +70,7 @@ cp env.example .env
 - 领星：`LINGXING_API_KEY`、`LINGXING_API_SECRET`
 - OCR：`ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`
 - MySQL：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`
-- Common 项目路径：`COMMON_DIR`
+- `COMMON_DIR` 可选；如果存在，会优先加载其中的 `.env` 作为基础环境变量。
 
 3. （可选）准备地址簿
 
@@ -79,28 +82,32 @@ cp env.example .env
   - 英国
   - 澳洲（或 澳大利亚）
 
+如果不挂载共享盘，也可以直接用 SMB 协议读取地址簿：
+
+```env
+ADDRESS_BOOK_XLSX_PATH=smb://192.168.0.45/供应链管理/2 物流发货管理/17.单证数据表维护/全站点地址.xlsx
+SMB_USERNAME=Logistics
+SMB_PASSWORD=your_password
+SMB_PORT=445
+SMB_TIMEOUT_SEC=30
+SMB_CLIENT_NAME=dingtalk-cp-bot
+```
+
+`ADDRESS_BOOK_XLSX_PATH` 也支持 Windows UNC 形式，例如：
+
+```text
+\\192.168.0.45\供应链管理\2 物流发货管理\17.单证数据表维护\全站点地址.xlsx
+```
+
 4. 初始化 MySQL 表
 
-代码要求以下 3 张表存在：
+代码只要求调用日志表存在，用于记录谁使用过机器人：
 
-- `dim_bot_cp_message_dedup`
-- `dim_bot_cp_shipment_lock`
 - `fact_bot_cp_call_log`
 
 可直接执行：
 
 ```sql
-CREATE TABLE IF NOT EXISTS dim_bot_cp_message_dedup (
-  message_id VARCHAR(128) NOT NULL PRIMARY KEY COMMENT '钉钉消息ID（去重键）',
-  expires_at DOUBLE NOT NULL COMMENT '过期时间戳（秒）'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息去重状态表';
-
-CREATE TABLE IF NOT EXISTS dim_bot_cp_shipment_lock (
-  shipment_sn VARCHAR(64) NOT NULL PRIMARY KEY COMMENT '发货单号',
-  holder_id VARCHAR(128) NOT NULL COMMENT '锁持有者（request_id）',
-  expires_at DOUBLE NOT NULL COMMENT '锁过期时间戳（秒）'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='发货单并发锁表';
-
 CREATE TABLE IF NOT EXISTS fact_bot_cp_call_log (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '调用时间',
@@ -128,8 +135,9 @@ docker compose up -d --build
 
 注意：
 
-- `docker-compose.yml` 当前仅挂载 `downloads` 和 `${COMMON_DIR}`。
-- 如果容器内要做地址簿匹配，需要额外挂载地址簿文件目录，或把 `ADDRESS_BOOK_XLSX_PATH` 指向容器内可读路径。
+- `docker-compose.yml` 当前挂载 `downloads`、`files`；`${COMMON_DIR}` 是可选兼容挂载。
+- 如果用本地地址簿文件，容器内要做地址簿匹配，需要挂载地址簿文件目录，或把 `ADDRESS_BOOK_XLSX_PATH` 指向容器内可读路径。
+- 如果用 `smb://...` 地址簿路径，不需要挂载共享盘，但容器需要能访问 SMB 服务器的 `445` 端口，并需要配置 `SMB_USERNAME/SMB_PASSWORD`。
 
 ## 使用方式
 
@@ -180,6 +188,7 @@ SP260204001 SP260204012
 - 启动日志会打印配置检查信息。
 - 请求日志包含 `req=...`，用于串联整条链路。
 - `fact_bot_cp_call_log` 当前仅记录 `RECEIVED` 事件（即收到用户请求时落库）。
+- 消息去重和发货单并发锁使用本机内存状态，不再写入 MySQL；进程重启后这些临时状态会清空。
 
 ## 常见问题
 
@@ -187,8 +196,10 @@ SP260204001 SP260204012
   - 检查 `.env` 中 `DB_HOST/DB_USER/DB_NAME`。
 - `MySQL tables missing ...`
   - 先执行上面的建表 SQL。
-- `地址簿不存在` 或 `地址簿未加载到...`
-  - 检查 `ADDRESS_BOOK_XLSX_PATH`、sheet 名、`收件人/目的港` 列。
+- `地址簿不存在` / `加载地址簿失败` / `地址簿未加载到...`
+  - 本地文件模式：检查 `ADDRESS_BOOK_XLSX_PATH` 文件路径。
+  - SMB 模式：检查 `ADDRESS_BOOK_XLSX_PATH`、`SMB_USERNAME/SMB_PASSWORD`、共享盘权限和 `445` 端口连通性。
+  - 两种模式都要检查 sheet 名、`收件人/目的港` 列。
 - `OCR结果为空` / `OCR调用失败`
   - 检查 OCR 凭证与网络。
 - `领星查询失败`

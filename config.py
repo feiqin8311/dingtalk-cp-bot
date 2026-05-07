@@ -13,6 +13,9 @@ BASE_DIR = Path(__file__).resolve().parent
 ENV_PATH = BASE_DIR / ".env"
 
 
+load_dotenv(ENV_PATH, override=False)
+
+
 def _resolve_common_dir() -> Path:
     configured = os.getenv("COMMON_DIR", "").strip()
     if configured:
@@ -67,6 +70,13 @@ LINGXING_SSL_VERIFY = os.getenv("LINGXING_SSL_VERIFY", "false").lower() == "true
 # Local storage
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR") or str(BASE_DIR / "downloads")
 ADDRESS_BOOK_XLSX_PATH = os.getenv("ADDRESS_BOOK_XLSX_PATH") or str(BASE_DIR / "files" / "全站点地址.xlsx")
+SMB_USERNAME = os.getenv("SMB_USERNAME", "")
+SMB_PASSWORD = os.getenv("SMB_PASSWORD", "")
+SMB_HOST = os.getenv("SMB_HOST", "")
+SMB_SHARE = os.getenv("SMB_SHARE", "")
+SMB_PORT = int((os.getenv("SMB_PORT") or "445").strip())
+SMB_TIMEOUT_SEC = int((os.getenv("SMB_TIMEOUT_SEC") or "30").strip())
+SMB_CLIENT_NAME = os.getenv("SMB_CLIENT_NAME", "dingtalk-cp-bot")
 
 # Concurrency and reliability
 MAX_CONCURRENT_REQUESTS = 3
