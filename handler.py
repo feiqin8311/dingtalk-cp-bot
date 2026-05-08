@@ -43,6 +43,7 @@ from address_matching import (
     format_address_record_for_reply as _format_address_record_for_reply,
     format_ocr_record_for_reply as _format_ocr_record_for_reply,
     has_required_fields as _has_required_fields,
+    is_fc_contains_country as _is_fc_contains_country,
     missing_required_fields as _missing_required_fields,
     normalize_fc_code as _normalize_fc_code,
     parse_address_record as _parse_address_record,

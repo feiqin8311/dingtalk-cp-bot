@@ -218,6 +218,10 @@ def _is_fc_contains_country(nation: Optional[str]) -> bool:
     return any(country in text for country in ("加拿大", "日本", "阿联酋"))
 
 
+def is_fc_contains_country(nation: Optional[str]) -> bool:
+    return _is_fc_contains_country(nation)
+
+
 def dest_code_contains_in_ocr_text(dest_ids: List[str], ocr_text: str) -> bool:
     compact_ocr = re.sub(r"[^A-Z0-9]+", "", str(ocr_text or "").upper())
     if not compact_ocr:

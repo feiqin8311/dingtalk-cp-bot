@@ -66,6 +66,17 @@ Do not expose the real SMB password in responses or generated docs.
 
 ## Common Workflows
 
+### OpenClaw One-Shot Shipment Check
+
+When the logistics OpenClaw agent receives one or more shipment numbers like `SP260421012`, run the one-shot checker instead of starting the long-running DingTalk Stream service:
+
+```bash
+cd /home/yida/Project/dingtalk-cp-bot
+scripts/openclaw-run-cp-check.sh SP260421012 --user-id <sender_id> --user-name <sender_name>
+```
+
+Omit `--user-id` or `--user-name` if the connector metadata is unavailable. Reply with the command's user-facing result only. Do not expose `.env`, AppSecret, SMB password, token, database password, or full internal logs.
+
 ### Verify The Project
 
 Use a container when the host Python lacks dependencies:
